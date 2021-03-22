@@ -1,6 +1,6 @@
 // @ts-ignore
 import express, { Application } from 'express';
-import { Server as SocketIOServer } from 'socket.io';
+import { Server as SocketIOServer, Socket } from 'socket.io';
 import { createServer, Server as HTTPServer } from 'http';
 
 import path from 'path';
@@ -31,7 +31,6 @@ export class Server {
 		});
 
 		this.configureApp();
-		this.handleSocketConnection();
 	}
 
 	private handleRoutes(): void {
@@ -41,7 +40,9 @@ export class Server {
 	}
 
 	private handleSocketConnection(): void {
-		this.io.on('connection', (socket) => {
+		this.io.on('connection', (socket: Socket) => {
+			console.log('connected', socket.id);
+
 			const existingSocket = this.activeSockets.find(
 				(existingSocket) => existingSocket === socket.id,
 			);
@@ -60,9 +61,9 @@ export class Server {
 				});
 			}
 
-			socket.on('message', (data) => {
-				console.log(data);
-				socket.broadcast.emit('broadcast', data);
+			socket.on('message', (m: any) => {
+				console.log('[server](message): ', JSON.stringify(m));
+				this.io.emit('message', m);
 			});
 
 			socket.on('disconnect', () => {
