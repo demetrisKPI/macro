@@ -1,5 +1,7 @@
-import { RefObject, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { io, Socket } from 'socket.io-client';
+
+const { RTCPeerConnection, RTCSessionDescription } = window;
 
 const constraints: MediaStreamConstraints = {
 	video: {
@@ -9,33 +11,61 @@ const constraints: MediaStreamConstraints = {
 	audio: true,
 };
 
-const onSend = (socket?: Socket, ref?: RefObject<HTMLInputElement>) => {
-	if (!socket || !ref) return;
+const onSend = (message: string, socket?: Socket) => {
+	if (!socket) return;
 	socket.send(
 		JSON.stringify({
 			event: 'message',
-			data: ref.current?.value || 'hello',
+			data: message,
 		}),
 	);
 };
 
 function App() {
-	const inputRef = useRef<HTMLInputElement>(null);
 	const videoRef = useRef<HTMLVideoElement>(null);
+	const remoteVideoRef = useRef<HTMLVideoElement>(null);
 	const [socketState, setSocketState] = useState<Socket>();
 	const [messages, setMessages] = useState<string[]>([]);
+	const [message, setMessage] = useState<string>('hello');
+
+	const [isAlreadyCalling, setIsAlreadyCalling] = useState(false);
+
+	const peerConnection = new RTCPeerConnection();
+	const [userList, setUserList] = useState<string[]>([]);
+
+	async function callUser(socketId: string) {
+		if (!socketState) return;
+		const offer = await peerConnection.createOffer();
+		await peerConnection.setLocalDescription(new RTCSessionDescription(offer));
+
+		socketState.emit('call-user', {
+			offer,
+			to: socketId,
+		});
+	}
 
 	useEffect(() => {
-		// (async () =>
-		// 	console.log(await navigator.mediaDevices.enumerateDevices()))();
 		const socket = io('http://localhost:5000', {});
+		setSocketState(socket);
+	}, []);
 
-		socket.on('message', (data) => {
-			setMessages([...messages, JSON.parse(data).data]);
-			console.log(JSON.parse(data).data);
+	useEffect(() => {
+		if (!socketState) return;
+
+		peerConnection.ontrack = function ({ streams: [stream] }) {
+			if (remoteVideoRef.current) {
+				remoteVideoRef.current.srcObject = stream;
+			}
+		};
+
+		socketState.on('message', (data) => {
+			setMessages((state) => {
+				state.push(JSON.parse(data).data);
+				return state;
+			});
 		});
 
-		socket.on('disconnected', () => {
+		socketState.on('disconnected', () => {
 			console.log('Closed');
 		});
 
@@ -45,13 +75,62 @@ function App() {
 				if (videoRef.current) {
 					videoRef.current.srcObject = stream;
 				}
+				stream
+					.getTracks()
+					.forEach((track) => peerConnection.addTrack(track, stream));
 			})
 			.catch((err) => {
 				console.error(err);
 			});
 
-		setSocketState(socket);
-	}, []);
+		socketState.on('update-user-list', ({ users }: { users: string[] }) => {
+			console.log(users);
+			setUserList(users);
+		});
+
+		socketState.on('call-made', async (data) => {
+			await peerConnection.setRemoteDescription(
+				new RTCSessionDescription(data.offer),
+			);
+			const answer = await peerConnection.createAnswer();
+			await peerConnection.setLocalDescription(
+				new RTCSessionDescription(answer),
+			);
+
+			socketState.emit('make-answer', {
+				answer,
+				to: data.socket,
+			});
+		});
+
+		socketState.on('answer-made', async (data) => {
+			await peerConnection.setRemoteDescription(
+				new RTCSessionDescription(data.answer),
+			);
+
+			if (!isAlreadyCalling) {
+				callUser(data.socket);
+				setIsAlreadyCalling(true);
+			}
+		});
+
+		socketState.on('remove-user', ({ socketId }) => {
+			const elToRemove = document.getElementById(socketId);
+
+			if (elToRemove) {
+				elToRemove.remove();
+			}
+		});
+	}, [socketState]);
+
+	const chatMsgs = () => messages.map((el, i) => <div key={i}>{el}</div>);
+
+	const userListDiv = () =>
+		userList.map((el, i) => (
+			<div key={i} onClick={async () => await callUser(el)}>
+				{el}
+			</div>
+		));
 
 	return (
 		<div
@@ -64,21 +143,22 @@ function App() {
 		>
 			<div>
 				<h1>Say hi</h1>
-				<input type='text' ref={inputRef}></input>
-				<button onClick={() => onSend(socketState, inputRef)}>
+				<input
+					type='text'
+					onChange={(e) => setMessage(e.target.value || '')}
+				></input>
+				<button onClick={() => onSend(message, socketState)}>
 					send message
 				</button>
-				<div>
-					{messages.map((el, i) => (
-						<div key={i}>{el}</div>
-					))}
-				</div>
+				<div>{chatMsgs()}</div>
+				<div>{userListDiv()}</div>
 			</div>
+			<video ref={videoRef} autoPlay muted style={{ marginRight: '400px' }} />
 			<video
-				ref={videoRef}
+				ref={remoteVideoRef}
 				autoPlay
 				muted
-				style={{ rotate: '90deg', marginRight: '400px' }}
+				style={{ marginRight: '400px' }}
 			/>
 		</div>
 	);

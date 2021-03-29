@@ -5,6 +5,14 @@ import { createServer, Server as HTTPServer } from 'http';
 
 import path from 'path';
 import cors from 'cors';
+import {
+	addSocket,
+	handleMessageEvent,
+	handleCallUserEvent,
+	handleMakeAnswerEvent,
+	handleDisconnectEvent,
+} from './lib/socketHelpers';
+import { CallUserEventData } from './lib/types';
 
 export class Server {
 	private httpServer: HTTPServer;
@@ -39,41 +47,29 @@ export class Server {
 		});
 	}
 
+	private handleSocketEvents(socket: Socket): void {
+		socket.on('message', (data: JSON) =>
+			handleMessageEvent({ data, server: this.io }),
+		);
+
+		socket.on('call-user', (data: CallUserEventData) =>
+			handleCallUserEvent({ data, socket }),
+		);
+
+		socket.on('make-answer', (data: CallUserEventData) =>
+			handleMakeAnswerEvent({ data, socket }),
+		);
+
+		socket.on('disconnect', () => {
+			handleDisconnectEvent(this.activeSockets, socket);
+		});
+	}
+
 	private handleSocketConnection(): void {
 		this.io.on('connection', (socket: Socket) => {
-			console.log('connected', socket.id);
+			addSocket(this.activeSockets, socket.id, socket);
 
-			const existingSocket = this.activeSockets.find(
-				(existingSocket) => existingSocket === socket.id,
-			);
-
-			if (!existingSocket) {
-				this.activeSockets.push(socket.id);
-
-				socket.emit('update-user-list', {
-					users: this.activeSockets.filter(
-						(existingSocket) => existingSocket !== socket.id,
-					),
-				});
-
-				socket.broadcast.emit('update-user-list', {
-					users: [socket.id],
-				});
-			}
-
-			socket.on('message', (m: any) => {
-				console.log('[server](message): ', JSON.stringify(m));
-				this.io.emit('message', m);
-			});
-
-			socket.on('disconnect', () => {
-				this.activeSockets = this.activeSockets.filter(
-					(existingSocket) => existingSocket !== socket.id,
-				);
-				socket.broadcast.emit('remove-user', {
-					socketId: socket.id,
-				});
-			});
+			this.handleSocketEvents(socket);
 		});
 	}
 
