@@ -1,4 +1,5 @@
 export type CallUserEventData = {
-	reply: RTCSessionDescriptionInit;
+	[key in 'offer' | 'answer']: RTCSessionDescriptionInit;
+} & {
 	to: string;
 };

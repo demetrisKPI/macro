@@ -45,7 +45,7 @@ function App() {
 	}
 
 	useEffect(() => {
-		const socket = io('http://localhost:5000', {});
+		const socket = io('http://localhost:5000');
 		setSocketState(socket);
 	}, []);
 
@@ -59,10 +59,7 @@ function App() {
 		};
 
 		socketState.on('message', (data) => {
-			setMessages((state) => {
-				state.push(JSON.parse(data).data);
-				return state;
-			});
+			setMessages([...messages, JSON.parse(data).data]);
 		});
 
 		socketState.on('disconnected', () => {
@@ -104,9 +101,11 @@ function App() {
 		});
 
 		socketState.on('answer-made', async (data) => {
-			await peerConnection.setRemoteDescription(
-				new RTCSessionDescription(data.answer),
-			);
+			if (isAlreadyCalling) return;
+
+			await peerConnection
+				.setRemoteDescription(new RTCSessionDescription(data.answer))
+				.catch((err) => console.log(err));
 
 			if (!isAlreadyCalling) {
 				callUser(data.socket);
@@ -117,9 +116,7 @@ function App() {
 		socketState.on('remove-user', ({ socketId }) => {
 			const elToRemove = document.getElementById(socketId);
 
-			if (elToRemove) {
-				elToRemove.remove();
-			}
+			if (elToRemove) elToRemove.remove();
 		});
 	}, [socketState]);
 

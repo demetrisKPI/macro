@@ -8,7 +8,7 @@ type Props = {
 
 const handleCallUserEvent = ({ data, socket }: Props) => {
 	socket.to(data.to).emit('call-made', {
-		offer: data.reply,
+		offer: data.offer,
 		socket: socket.id,
 	});
 };

@@ -7,6 +7,7 @@ const handleDisconnectEvent = (activeSockets: string[], socket: Socket) => {
 	socket.broadcast.emit('remove-user', {
 		socketId: socket.id,
 	});
+	return activeSockets;
 };
 
 export default handleDisconnectEvent;

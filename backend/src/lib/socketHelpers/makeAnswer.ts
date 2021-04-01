@@ -9,7 +9,7 @@ type Props = {
 const handleMakeAnswerEvent = ({ data, socket }: Props) => {
 	socket.to(data.to).emit('answer-made', {
 		socket: socket.id,
-		answer: data.reply,
+		answer: data.answer,
 	});
 };
 

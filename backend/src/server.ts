@@ -1,4 +1,3 @@
-// @ts-ignore
 import express, { Application } from 'express';
 import { Server as SocketIOServer, Socket } from 'socket.io';
 import { createServer, Server as HTTPServer } from 'http';
@@ -61,7 +60,9 @@ export class Server {
 		);
 
 		socket.on('disconnect', () => {
-			handleDisconnectEvent(this.activeSockets, socket);
+			console.log('disconnect');
+
+			this.activeSockets = handleDisconnectEvent(this.activeSockets, socket);
 		});
 	}
 
