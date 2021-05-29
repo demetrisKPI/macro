@@ -68,6 +68,7 @@ export class Server {
 
 	private handleSocketConnection(): void {
 		this.io.on('connection', (socket: Socket) => {
+			if (this.activeSockets.length >= 2) return;
 			addSocket(this.activeSockets, socket.id, socket);
 
 			this.handleSocketEvents(socket);
