@@ -51,13 +51,16 @@ export class Server {
 			handleMessageEvent({ data, server: this.io }),
 		);
 
-		socket.on('call-user', (data: CallUserEventData) =>
-			handleCallUserEvent({ data, socket }),
-		);
+		socket.on('call-user', (data: CallUserEventData) => {
+			console.log('call-user');
 
-		socket.on('make-answer', (data: CallUserEventData) =>
-			handleMakeAnswerEvent({ data, socket }),
-		);
+			handleCallUserEvent({ data, socket });
+		});
+
+		socket.on('make-answer', (data: CallUserEventData) => {
+			console.log('make-answer');
+			handleMakeAnswerEvent({ data, socket });
+		});
 
 		socket.on('disconnect', () => {
 			console.log('disconnect');
@@ -68,7 +71,6 @@ export class Server {
 
 	private handleSocketConnection(): void {
 		this.io.on('connection', (socket: Socket) => {
-			if (this.activeSockets.length >= 2) return;
 			addSocket(this.activeSockets, socket.id, socket);
 
 			this.handleSocketEvents(socket);

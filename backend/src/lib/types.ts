@@ -3,3 +3,9 @@ export type CallUserEventData = {
 } & {
 	to: string;
 };
+
+export type SocketUser = {
+	id: string;
+	name?: string;
+	isOnCall: boolean;
+};

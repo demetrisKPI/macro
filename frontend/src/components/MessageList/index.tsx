@@ -23,11 +23,12 @@ const MessageList = ({ messages = [], onSendMessage }: Props) => {
 					size='big'
 					type='text'
 					className={styles.header}
-					icon={{
-						name: 'envelope',
-						circular: true,
-						link: true,
-						onClick: () => message && onSendMessage(message),
+					action={{
+						icon: {
+							name: 'envelope',
+							link: true,
+							onClick: () => message && onSendMessage(message),
+						},
 					}}
 					placeholder='Type a message...'
 					onChange={(e) => setMessage(e.target.value)}
